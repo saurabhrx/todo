@@ -61,13 +61,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 			"message": "Invalid Credentials",
 		})
 	}
-	sessErr := dbHelper.CreateSession(userID)
+	sessionID, sessErr := dbHelper.CreateSession(userID)
 	if sessErr != nil {
 		http.Error(w, "Failed to create session", http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "User Login",
+		"message":       "User Login",
+		"session_token": sessionID,
 	})
 
 }

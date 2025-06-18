@@ -31,11 +31,14 @@ func CreateUser(name string, email string, password string) (string, error) {
 	return userID, nil
 }
 
-func CreateSession(userID string) error {
+func CreateSession(userID string) (string, error) {
 	expireDate := time.Now().Add(7 * 24 * time.Hour)
-	SQL := `INSERT INTO user_session(user_id,expired_at) VALUES($1,$2)`
-	_, err := database.Todo.Exec(SQL, userID, expireDate)
-	return err
+	var sessionID string
+	SQL := `INSERT INTO user_session(user_id,expired_at) VALUES($1,$2) RETURNING id`
+	if err := database.Todo.QueryRowx(SQL, userID, expireDate).Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
 }
 func ValidateUser(email, password string) (string, error) {
 	SQL := `Select id , password from users where archived_at IS NULL and email=$1`
