@@ -12,11 +12,13 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.Header.Get("session-id")
 	if sessionID == "" {
 		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := dbHelper.ValidateSession(sessionID)
 	if err != nil {
 		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
+		return
 	}
 
 	body := struct {
@@ -43,6 +45,7 @@ func GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.Header.Get("session-id")
 	if sessionID == "" {
 		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := dbHelper.ValidateSession(sessionID)
@@ -53,6 +56,7 @@ func GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	todos, GetTodoErr := dbHelper.GetTodos(userID)
 	if GetTodoErr != nil {
 		http.Error(w, "Failed to fetch todos", http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode(todos)
@@ -62,11 +66,13 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.Header.Get("session-id")
 	if sessionID == "" {
 		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
+		return
 	}
 
 	userID, err := dbHelper.ValidateSession(sessionID)
 	if err != nil {
 		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
+		return
 
 	}
 	body := struct {
@@ -96,11 +102,13 @@ func DeleteTodo(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.Header.Get("session-id")
 	if sessionID == "" {
 		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
+		return
 	}
 
 	_, err := dbHelper.ValidateSession(sessionID)
 	if err != nil {
 		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
+		return
 
 	}
 	body := struct {

@@ -2,8 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"myTodo/database/dbHelper"
 	"net/http"
@@ -16,26 +14,27 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		logrus.Panic("Failed to parse request body")
+		http.Error(w, "Failed to parse request body", http.StatusInternalServerError)
 		return
 	}
 	exists, existsErr := dbHelper.IsUserExists(body.Email)
 	if existsErr != nil {
-		fmt.Println("Error while creating user", existsErr)
+		http.Error(w, "Error while creating User", http.StatusInternalServerError)
 		return
 	}
 	if exists {
-		fmt.Println("User Already exists")
+		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	}
 	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 	if hashErr != nil {
-		fmt.Println(hashErr)
+		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
 		return
 	}
-	_, saveErr := dbHelper.CreateUser(body.Name, body.Email, string(hashedPassword))
-	if saveErr != nil {
-		fmt.Println(saveErr)
+	_, CreateErr := dbHelper.CreateUser(body.Name, body.Email, string(hashedPassword))
+	if CreateErr != nil {
+		http.Error(w, "Failed to create new user", http.StatusInternalServerError)
+		return
 	}
 	//sessErr := dbHelper.CreateSession(userId)
 	//if sessErr != nil {
@@ -53,7 +52,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		logrus.Panic("Failed to parse request body")
+		http.Error(w, "Failed to Decode json", http.StatusInternalServerError)
 		return
 	}
 	userID, validateErr := dbHelper.ValidateUser(body.Email, body.Password)
@@ -64,7 +63,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	sessErr := dbHelper.CreateSession(userID)
 	if sessErr != nil {
-		fmt.Println(sessErr)
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "User Login",
@@ -88,6 +88,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	LogoutErr := dbHelper.Logout(sessionID)
 	if LogoutErr != nil {
 		http.Error(w, "Logout Failed", http.StatusInternalServerError)
+		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Logout successfully",
@@ -110,7 +111,29 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	userDetails, GetProfileErr := dbHelper.GetProfile(userID)
 	if GetProfileErr != nil {
 		http.Error(w, "Failed to get user profile", http.StatusInternalServerError)
+		return
 	}
 	json.NewEncoder(w).Encode(userDetails)
 
+}
+
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+
+	body := struct {
+		ID string `json:"id"`
+	}{}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Failed to parse request body", http.StatusInternalServerError)
+		return
+	}
+
+	DeleteErr := dbHelper.DeleteUser(body.ID)
+	if DeleteErr != nil {
+		http.Error(w, "Failed to Delete User", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "User deleted successfully",
+	})
 }

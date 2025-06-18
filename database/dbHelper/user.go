@@ -100,3 +100,9 @@ func DeleteTodo(todoID string) error {
 	_, err := database.Todo.Exec(SQL, todoID)
 	return err
 }
+
+func DeleteUser(userID string) error {
+	SQL := `UPDATE users SET archived_at=now() WHERE id=$1`
+	_, err := database.Todo.Exec(SQL, userID)
+	return err
+}
