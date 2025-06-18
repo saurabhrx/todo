@@ -31,6 +31,12 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/register", handler.Register).Methods("POST")
 	r.HandleFunc("/login", handler.Login).Methods("POST")
+	r.HandleFunc("/logout", handler.Logout).Methods("POST")
+	r.HandleFunc("/profile", handler.GetProfile).Methods("GET")
+	r.HandleFunc("/create-todo", handler.CreateTodo).Methods("POST")
+	r.HandleFunc("/get-todos", handler.GetAllTodos).Methods("GET")
+	r.HandleFunc("/update-todo", handler.UpdateTodo).Methods("PUT")
+	r.HandleFunc("/delete-todo", handler.DeleteTodo).Methods("DELETE")
 
 	http.ListenAndServe(":8080", r)
 }

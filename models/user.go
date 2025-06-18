@@ -16,13 +16,15 @@ type Todo struct {
 	UserID      string     `json:"user_id" db:"user_id"`
 	Name        string     `json:"name" db:"name"`
 	Description string     `json:"description" db:"description"`
+	Status      bool       `json:"status" db:"status"`
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 	ArchivedAt  *time.Time `json:"archived_at" db:"archived_at"`
 }
 
 type Session struct {
-	ID         string `json:"id" db:"id"`
-	UserID     string `json:"user_id" db:"user_id"`
-	CreatedAt  string `json:"created_at" db:"created_at"`
-	ArchivedAt string `json:"archived_at" db:"archived_at"`
+	ID         string     `json:"id" db:"id"`
+	UserID     string     `json:"user_id" db:"user_id"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
+	ExpiredAt  time.Time  `json:"expired_at" db:"expired_at"`
+	ArchivedAt *time.Time `json:"archived_at" db:"archived_at"`
 }

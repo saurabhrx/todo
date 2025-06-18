@@ -1,0 +1,8 @@
+BEGIN ;
+
+ALTER TABLE user_session
+ADD COLUMN
+archived_at TIMESTAMP WITH TIME ZONE;
+
+COMMIT;
+
