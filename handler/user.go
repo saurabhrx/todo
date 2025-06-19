@@ -60,6 +60,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{
 			"message": "Invalid Credentials",
 		})
+		return
 	}
 	sessionID, sessErr := dbHelper.CreateSession(userID)
 	if sessErr != nil {
@@ -67,7 +68,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{
-		"message":       "User Login",
+		"message":       "User logged in successfully",
 		"session_token": sessionID,
 	})
 
@@ -120,16 +121,20 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
-	body := struct {
-		ID string `json:"id"`
-	}{}
+	sessionID := r.Header.Get("session-id")
+	if sessionID == "" {
+		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
+		return
 
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "Failed to parse request body", http.StatusInternalServerError)
+	}
+
+	userID, err := dbHelper.ValidateSession(sessionID)
+	if err != nil {
+		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
 		return
 	}
 
-	DeleteErr := dbHelper.DeleteUser(body.ID)
+	DeleteErr := dbHelper.DeleteUser(userID)
 	if DeleteErr != nil {
 		http.Error(w, "Failed to Delete User", http.StatusInternalServerError)
 		return

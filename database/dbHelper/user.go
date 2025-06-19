@@ -59,14 +59,14 @@ func ValidateUser(email, password string) (string, error) {
 }
 
 func ValidateSession(sessionID string) (string, error) {
-	SQL := `SELECT user_id from user_session WHERE id=$1 AND expired_at > now() AND archived_at IS NULL `
+	SQL := `SELECT user_id from user_session WHERE id=$1 AND expired_at > now() `
 	var userID string
 	err := database.Todo.Get(&userID, SQL, sessionID)
 	return userID, err
 }
 
 func Logout(sessionID string) error {
-	SQL := `UPDATE user_session SET archived_at=now(),expired_at=now() WHERE id=$1`
+	SQL := `UPDATE user_session SET expired_at=now() WHERE id=$1`
 	_, err := database.Todo.Exec(SQL, sessionID)
 	return err
 

@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"myTodo/database"
-	"myTodo/handler"
+	"myTodo/routes"
 	"net/http"
 	"os"
 )
@@ -29,24 +28,19 @@ func main() {
 	}
 
 	fmt.Println("Database connected")
-	r := mux.NewRouter()
-	r.HandleFunc("/register", handler.Register).Methods("POST")
-	r.HandleFunc("/login", handler.Login).Methods("POST")
-	r.HandleFunc("/logout", handler.Logout).Methods("POST")
-	r.HandleFunc("/profile", handler.GetProfile).Methods("GET")
-	r.HandleFunc("/delete-user", handler.DeleteUser).Methods("DELETE")
-	r.HandleFunc("/create-todo", handler.CreateTodo).Methods("POST")
-	r.HandleFunc("/get-todos", handler.GetAllTodos).Methods("GET")
-	r.HandleFunc("/update-todo", handler.UpdateTodo).Methods("PUT")
-	r.HandleFunc("/delete-todo", handler.DeleteTodo).Methods("DELETE")
 
-	SrvErr := http.ListenAndServe(":8080", r)
+	srv := routes.SetupTodoRoutes()
+
+	SrvErr := http.ListenAndServe(":8080", srv)
+
 	if SrvErr != nil {
+		fmt.Println("Failed to connect to server")
 		return
 	}
 
 	DBCloseErr := database.CloseDBConnection()
 	if DBCloseErr != nil {
+		fmt.Println("Failed to close databse")
 		return
 	}
 

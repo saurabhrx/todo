@@ -17,13 +17,10 @@ func ConnectToDB(host, port, user, password, dbname string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("abc....", plsqlInfo)
 	err = DB.Ping()
-	fmt.Println("m...")
 	if err != nil {
 		return err
 	}
-	fmt.Println("connection")
 	Todo = DB
 	return migrateUp(Todo)
 
