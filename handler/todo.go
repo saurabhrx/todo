@@ -51,6 +51,7 @@ func GetAllTodos(w http.ResponseWriter, r *http.Request) {
 	userID, err := dbHelper.ValidateSession(sessionID)
 	if err != nil {
 		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
+		return
 
 	}
 	todos, GetTodoErr := dbHelper.GetTodos(userID)
