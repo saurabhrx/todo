@@ -2,144 +2,126 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"myTodo/database/dbHelper"
+	"myTodo/middleware"
+	"myTodo/models"
 	"net/http"
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
-	body := struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}{}
+	var body models.UserRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "Failed to parse request body", http.StatusInternalServerError)
+		http.Error(w, "failed to parse request body", http.StatusInternalServerError)
 		return
 	}
 	exists, existsErr := dbHelper.IsUserExists(body.Email)
 	if existsErr != nil {
-		http.Error(w, "Error while creating User", http.StatusInternalServerError)
+		http.Error(w, "error while creating User", http.StatusInternalServerError)
 		return
 	}
 	if exists {
-		http.Error(w, "User already exists", http.StatusConflict)
+		http.Error(w, "user already exists", http.StatusConflict)
 		return
 	}
 	hashedPassword, hashErr := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 	if hashErr != nil {
-		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+		http.Error(w, "failed to hash password", http.StatusInternalServerError)
 		return
 	}
-	_, CreateErr := dbHelper.CreateUser(body.Name, body.Email, string(hashedPassword))
+	userID, CreateErr := dbHelper.CreateUser(body.Name, body.Email, string(hashedPassword))
 	if CreateErr != nil {
-		http.Error(w, "Failed to create new user", http.StatusInternalServerError)
+		http.Error(w, "failed to create new user", http.StatusInternalServerError)
 		return
 	}
-	//sessErr := dbHelper.CreateSession(userId)
-	//if sessErr != nil {
-	//	fmt.Println(sessErr)
-	//}
+	_, sessErr := dbHelper.CreateSession(userID)
+	if sessErr != nil {
+		fmt.Println(sessErr)
+		return
+	}
 
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "User created successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "user created successfully",
 	})
+	if err != nil {
+		return
+	}
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	body := struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}{}
+	var body models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "Failed to Decode json", http.StatusInternalServerError)
+		http.Error(w, "failed to Decode json", http.StatusInternalServerError)
 		return
 	}
 	userID, validateErr := dbHelper.ValidateUser(body.Email, body.Password)
 	if validateErr != nil {
 		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Invalid Credentials",
+			"message": "invalid credentials",
 		})
 		return
 	}
 	sessionID, sessErr := dbHelper.CreateSession(userID)
 	if sessErr != nil {
-		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-		"message":       "User logged in successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message":       "user logged in successfully",
 		"session_token": sessionID,
 	})
+	if err != nil {
+		return
+	}
 
 }
 func Logout(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-
-	}
-
-	_, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-	}
-
 	LogoutErr := dbHelper.Logout(sessionID)
 	if LogoutErr != nil {
-		http.Error(w, "Logout Failed", http.StatusInternalServerError)
+		http.Error(w, "logout failed", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Logout successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "logout successfully",
 	})
+	if err != nil {
+		return
+	}
 }
 
 func GetProfile(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-
-	}
-
-	userID, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-	}
+	userID := middleware.UserContext(r)
 	userDetails, GetProfileErr := dbHelper.GetProfile(userID)
 	if GetProfileErr != nil {
-		http.Error(w, "Failed to get user profile", http.StatusInternalServerError)
+		http.Error(w, "failed to get user profile", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(userDetails)
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"id":    userDetails.ID,
+		"name":  userDetails.Name,
+		"email": userDetails.Email,
+	})
+	if err != nil {
+		return
+	}
 
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
-	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-
-	}
-
-	userID, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-	}
+	userID := middleware.UserContext(r)
 
 	DeleteErr := dbHelper.DeleteUser(userID)
 	if DeleteErr != nil {
-		http.Error(w, "Failed to Delete User", http.StatusInternalServerError)
+		http.Error(w, "failed to delete user", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "User deleted successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "user deleted successfully",
 	})
+	if err != nil {
+		return
+	}
 }

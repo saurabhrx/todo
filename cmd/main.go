@@ -13,7 +13,7 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Error loading .env file")
+		fmt.Println("error loading .env file")
 		return
 	}
 	host := os.Getenv("DB_HOST")
@@ -23,24 +23,24 @@ func main() {
 	password := os.Getenv("DB_PASSWORD")
 
 	if err := database.ConnectToDB(host, port, user, password, databaseName); err != nil {
-		fmt.Println("Failed to connect database")
+		fmt.Println("failed to connect database")
 		return
 	}
 
-	fmt.Println("Database connected")
+	fmt.Println("database connected")
 
 	srv := routes.SetupTodoRoutes()
 
 	SrvErr := http.ListenAndServe(":8080", srv)
 
 	if SrvErr != nil {
-		fmt.Println("Failed to connect to server")
+		fmt.Println("failed to connect to server")
 		return
 	}
 
 	DBCloseErr := database.CloseDBConnection()
 	if DBCloseErr != nil {
-		fmt.Println("Failed to close databse")
+		fmt.Println("failed to close database")
 		return
 	}
 

@@ -12,9 +12,9 @@ func CreateTodo(userID, name, description string, status bool) error {
 
 }
 
-func GetTodos(userID string) ([]models.Todo, error) {
-	SQL := `SELECT * FROM todo WHERE user_id=$1 AND archived_at is NULL`
-	var todos []models.Todo
+func GetTodos(userID string) ([]models.TodoResponse, error) {
+	SQL := `SELECT id , user_id , name , description , status , created_at FROM todo WHERE user_id=$1 AND archived_at is NULL`
+	var todos []models.TodoResponse
 	err := database.Todo.Select(&todos, SQL, userID)
 	return todos, err
 }

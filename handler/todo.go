@@ -4,129 +4,85 @@ import (
 	"encoding/json"
 	"github.com/sirupsen/logrus"
 	"myTodo/database/dbHelper"
+	"myTodo/middleware"
+	"myTodo/models"
 	"net/http"
 )
 
 func CreateTodo(w http.ResponseWriter, r *http.Request) {
 
-	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	userID, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-	}
-
-	body := struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Status      bool   `json:"status"`
-	}{}
-
+	userID := middleware.UserContext(r)
+	var body models.TodoRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		logrus.Panic("Failed to parse request body")
+		http.Error(w, "failed to parse request body", http.StatusInternalServerError)
 		return
 	}
-	CreateErr := dbHelper.CreateTodo(userID, body.Name, body.Description, body.Status)
+	CreateErr := dbHelper.CreateTodo(userID, body.Name, body.Description, false)
 	if CreateErr != nil {
-		http.Error(w, "Failed to create todo", http.StatusInternalServerError)
+		http.Error(w, "failed to create todo", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Todo created successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "todo created successfully",
 	})
+	if err != nil {
+		return
+	}
 }
 
 func GetAllTodos(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	userID, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-
-	}
+	userID := middleware.UserContext(r)
 	todos, GetTodoErr := dbHelper.GetTodos(userID)
 	if GetTodoErr != nil {
-		http.Error(w, "Failed to fetch todos", http.StatusInternalServerError)
+		http.Error(w, "failed to fetch todos", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(todos)
+	err := json.NewEncoder(w).Encode(todos)
+	if err != nil {
+		return
+	}
 }
 
 func UpdateTodo(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	userID, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-
-	}
-	body := struct {
-		ID          string `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Status      bool   `json:"status"`
-	}{}
-
+	userID := middleware.UserContext(r)
+	var body models.TodoUpdate
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		logrus.Panic("Failed to parse request body")
+		logrus.Panic("failed to parse request body")
 		return
 	}
 
 	UpdateErr := dbHelper.UpdateTodo(body.ID, userID, body.Name, body.Description, body.Status)
 	if UpdateErr != nil {
-		http.Error(w, "Failed to Update", http.StatusInternalServerError)
+		http.Error(w, "failed to Update", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Todo Updated Successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "todo updated successfully",
 	})
+	if err != nil {
+		return
+	}
 
 }
 
 func DeleteTodo(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.Header.Get("session-id")
-	if sessionID == "" {
-		http.Error(w, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 
-	_, err := dbHelper.ValidateSession(sessionID)
-	if err != nil {
-		http.Error(w, "Invalid or Expired Session", http.StatusUnauthorized)
-		return
-
-	}
-	body := struct {
-		ID string `json:"id"`
-	}{}
-
+	var body models.TodoDelete
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		logrus.Panic("Failed to parse request body")
+		logrus.Panic("failed to parse request body")
 		return
 	}
 
 	DeleteErr := dbHelper.DeleteTodo(body.ID)
 	if DeleteErr != nil {
-		http.Error(w, "Failed to Delete todo", http.StatusInternalServerError)
+		http.Error(w, "failed to delete todo", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Todo deleted successfully",
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "todo deleted successfully",
 	})
+	if err != nil {
+		return
+	}
 }

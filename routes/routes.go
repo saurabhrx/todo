@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/gorilla/mux"
 	"myTodo/handler"
+	"myTodo/middleware"
 )
 
 func SetupTodoRoutes() *mux.Router {
@@ -12,16 +13,20 @@ func SetupTodoRoutes() *mux.Router {
 
 	srv.HandleFunc("/register", handler.Register).Methods("POST")
 	srv.HandleFunc("/login", handler.Login).Methods("POST")
-	srv.HandleFunc("/logout", handler.Logout).Methods("POST")
-	srv.HandleFunc("/profile", handler.GetProfile).Methods("GET")
-	srv.HandleFunc("/delete-user", handler.DeleteUser).Methods("DELETE")
+
+	protected := srv.NewRoute().Subrouter()
+	protected.Use(middleware.AuthMiddleware)
+
+	protected.HandleFunc("/logout", handler.Logout).Methods("POST")
+	protected.HandleFunc("/profile", handler.GetProfile).Methods("GET")
+	protected.HandleFunc("/delete-user", handler.DeleteUser).Methods("DELETE")
 
 	// todo routes
 
-	srv.HandleFunc("/create-todo", handler.CreateTodo).Methods("POST")
-	srv.HandleFunc("/get-todos", handler.GetAllTodos).Methods("GET")
-	srv.HandleFunc("/update-todo", handler.UpdateTodo).Methods("PUT")
-	srv.HandleFunc("/delete-todo", handler.DeleteTodo).Methods("DELETE")
+	protected.HandleFunc("/create-todo", handler.CreateTodo).Methods("POST")
+	protected.HandleFunc("/get-todos", handler.GetAllTodos).Methods("GET")
+	protected.HandleFunc("/update-todo", handler.UpdateTodo).Methods("PUT")
+	protected.HandleFunc("/delete-todo", handler.DeleteTodo).Methods("DELETE")
 
 	return srv
 }

@@ -72,11 +72,14 @@ func Logout(sessionID string) error {
 
 }
 
-func GetProfile(userID string) (models.User, error) {
-	SQL := `SELECT * FROM users WHERE id=$1 AND archived_at IS NULL`
-	var userDetails models.User
-	err := database.Todo.Get(&userDetails, SQL, userID)
-	return userDetails, err
+func GetProfile(userID string) (models.UserResponse, error) {
+	SQL := `SELECT id,name , email FROM users WHERE id=$1 AND archived_at IS NULL`
+	var userDetails models.UserResponse
+	err := database.Todo.QueryRowx(SQL, userID).Scan(&userDetails.ID, &userDetails.Name, &userDetails.Email)
+	if err != nil {
+		return models.UserResponse{}, err
+	}
+	return userDetails, nil
 }
 
 func DeleteUser(userID string) error {
