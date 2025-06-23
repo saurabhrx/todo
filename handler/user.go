@@ -2,13 +2,11 @@ package handler
 
 import (
 	"encoding/json"
-	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
 	"myTodo/database/dbHelper"
 	"myTodo/middleware"
 	"myTodo/models"
 	"net/http"
-	"strings"
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -95,36 +93,17 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		RefreshToken string `json:"refresh_token"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.RefreshToken == "" {
-		http.Error(w, "invalid refresh token", http.StatusBadRequest)
+		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		http.Error(w, "missing access token", http.StatusUnauthorized)
-		return
-	}
-	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
-
-	claims := jwt.MapClaims{}
-	_, _, err := new(jwt.Parser).ParseUnverified(accessToken, claims)
-	if err != nil {
-		http.Error(w, "invalid token", http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := claims["user_id"].(string)
-	if !ok || userID == "" {
-		http.Error(w, "invalid token claims", http.StatusUnauthorized)
-		return
-	}
-	LogoutErr := dbHelper.Logout(userID, body.RefreshToken)
-	if LogoutErr != nil {
+	userID := middleware.UserContext(r)
+	if err := dbHelper.Logout(userID, body.RefreshToken); err != nil {
 		http.Error(w, "logout failed", http.StatusInternalServerError)
 		return
 	}
+
 	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message": "logout successfully",
 	})
@@ -175,7 +154,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.UserID == "" || body.Token == "" {
-		http.Error(w, "missing user_id or refresh_token", http.StatusBadRequest)
+		http.Error(w, "missing user id or refresh token", http.StatusBadRequest)
 		return
 	}
 	if dbHelper.ValidateSession(body.UserID, body.Token) {
