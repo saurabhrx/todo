@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS user_session
+ADD COLUMN IF NOT EXISTS refresh_token TEXT

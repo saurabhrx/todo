@@ -10,7 +10,7 @@ func SetupTodoRoutes() *mux.Router {
 	srv := mux.NewRouter()
 
 	// user routes
-
+	srv.HandleFunc("/refresh", handler.Refresh).Methods("GET")
 	srv.HandleFunc("/register", handler.Register).Methods("POST")
 	srv.HandleFunc("/login", handler.Login).Methods("POST")
 

@@ -2,8 +2,12 @@ package middleware
 
 import (
 	"context"
-	"myTodo/database/dbHelper"
+	"fmt"
+	"github.com/golang-jwt/jwt/v4"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 )
 
 type ContextKey string
@@ -12,22 +16,106 @@ const (
 	userContext ContextKey = "userKey"
 )
 
+type Claims struct {
+	UserID string `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
+var jwtSecret = []byte(os.Getenv("SECRET_KEY"))
+
+func GenerateAccessToken(userID string) (string, error) {
+	accessClaims := &Claims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	accessJWT := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessToken, err := accessJWT.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
+	}
+	return accessToken, nil
+}
+func GenerateRefreshToken(userID string) (string, error) {
+	refreshClaims := &Claims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(48 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	refreshJWT := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshToken, err := refreshJWT.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
+	}
+	return refreshToken, nil
+
+}
+
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sessionID := r.Header.Get("session-id")
-		if sessionID == "" {
-			http.Error(w, "unauthorized user", http.StatusUnauthorized)
+
+		//session based authentication
+
+		//sessionID := r.Header.Get("session-id")
+		//if sessionID == "" {
+		//	http.Error(w, "unauthorized user", http.StatusUnauthorized)
+		//	return
+		//}
+		//
+		//userID, err := dbHelper.ValidateSession(sessionID)
+		//if err != nil {
+		//	http.Error(w, "invalid or expired session", http.StatusUnauthorized)
+		//	return
+		//}
+
+		// jwt based authentication
+
+		authHeader := r.Header.Get("Authorization")
+		fmt.Println("token....", authHeader)
+
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, "missing or malformed token", http.StatusUnauthorized)
+			return
+		}
+		accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+		accessClaims := jwt.MapClaims{}
+		token, err := jwt.ParseWithClaims(accessToken, accessClaims, func(token *jwt.Token) (interface{}, error) {
+			return jwtSecret, nil
+		})
+		// access token is valid
+		if err == nil && token.Valid {
+			userID := accessClaims["user_id"].(string)
+			ctx := context.WithValue(r.Context(), userContext, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		} else {
+			http.Error(w, "token expired", http.StatusUnauthorized)
 			return
 		}
 
-		userID, err := dbHelper.ValidateSession(sessionID)
-		if err != nil {
-			http.Error(w, "invalid or expired session", http.StatusUnauthorized)
-			return
-		}
+		//access token is invalid or expired
 
-		ctx := context.WithValue(r.Context(), userContext, userID)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		// check is session valid
+		//userID := accessClaims["user_id"].(string)
+		//fmt.Println(userID)
+		//if dbHelper.ValidateSession(userID, accessToken) {
+		//	http.Error(w, "access token expired", http.StatusUnauthorized)
+		//	return
+		//} else {
+		//	fmt.Println("invalid....")
+		//	err := dbHelper.DeleteSession(userID, accessToken)
+		//	if err != nil {
+		//		http.Error(w, "failed to delete the session", http.StatusInternalServerError)
+		//	}
+		//	http.Error(w, "session expired login again", http.StatusUnauthorized)
+		//	return
+		//}
+
 	})
 }
 
@@ -36,4 +124,5 @@ func UserContext(r *http.Request) string {
 		return user
 	}
 	return ""
+
 }

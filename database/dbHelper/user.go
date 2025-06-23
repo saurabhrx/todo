@@ -2,6 +2,7 @@ package dbHelper
 
 import (
 	"database/sql"
+	"errors"
 	"golang.org/x/crypto/bcrypt"
 	"myTodo/database"
 	"myTodo/models"
@@ -12,10 +13,10 @@ func IsUserExists(email string) (bool, error) {
 	SQL := `SELECT id FROM users WHERE email=$1 AND archived_at IS NULL `
 	var id string
 	err := database.Todo.Get(&id, SQL, email)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, err
 	}
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 
@@ -31,11 +32,11 @@ func CreateUser(name string, email string, password string) (string, error) {
 	return userID, nil
 }
 
-func CreateSession(userID string) (string, error) {
-	expireDate := time.Now().Add(7 * 24 * time.Hour)
+func CreateSession(userID string, refreshToken string) (string, error) {
+	expireDate := time.Now().Add(48 * time.Hour)
 	var sessionID string
-	SQL := `INSERT INTO user_session(user_id,expired_at) VALUES($1,$2) RETURNING id`
-	if err := database.Todo.QueryRowx(SQL, userID, expireDate).Scan(&sessionID); err != nil {
+	SQL := `INSERT INTO user_session(user_id,refresh_token,expired_at) VALUES($1,$2,$3) RETURNING id`
+	if err := database.Todo.QueryRowx(SQL, userID, refreshToken, expireDate).Scan(&sessionID); err != nil {
 		return "", err
 	}
 	return sessionID, nil
@@ -45,10 +46,10 @@ func ValidateUser(email, password string) (string, error) {
 	var userId string
 	var hashPassword string
 	err := database.Todo.QueryRowx(SQL, email).Scan(&userId, &hashPassword)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 	passwordErr := bcrypt.CompareHashAndPassword([]byte(hashPassword), []byte(password))
@@ -58,16 +59,19 @@ func ValidateUser(email, password string) (string, error) {
 	return userId, nil
 }
 
-func ValidateSession(sessionID string) (string, error) {
-	SQL := `SELECT user_id from user_session WHERE id=$1 AND expired_at > now() `
-	var userID string
-	err := database.Todo.Get(&userID, SQL, sessionID)
-	return userID, err
+func ValidateSession(userID string, refreshToken string) bool {
+	SQL := `SELECT user_id from user_session WHERE refresh_token=$1 AND user_id = $2 AND expired_at > now() `
+	var user string
+	err := database.Todo.Get(&user, SQL, refreshToken, userID)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
-func Logout(sessionID string) error {
-	SQL := `UPDATE user_session SET expired_at=now() WHERE id=$1`
-	_, err := database.Todo.Exec(SQL, sessionID)
+func Logout(userID string, refreshToken string) error {
+	SQL := `DELETE FROM user_session WHERE user_id=$1 AND refresh_token=$2`
+	_, err := database.Todo.Exec(SQL, userID, refreshToken)
 	return err
 
 }
@@ -85,5 +89,11 @@ func GetProfile(userID string) (models.UserResponse, error) {
 func DeleteUser(userID string) error {
 	SQL := `UPDATE users SET archived_at=now() WHERE id=$1`
 	_, err := database.Todo.Exec(SQL, userID)
+	return err
+}
+
+func DeleteSession(userID string, refreshToken string) error {
+	SQL := `DELETE FROM user_session WHERE user_id=$1 AND refresh_token=$2`
+	_, err := database.Todo.Exec(SQL, userID, refreshToken)
 	return err
 }

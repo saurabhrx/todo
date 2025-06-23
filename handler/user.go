@@ -2,12 +2,12 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"myTodo/database/dbHelper"
 	"myTodo/middleware"
 	"myTodo/models"
 	"net/http"
+	"strings"
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -35,14 +35,15 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to create new user", http.StatusInternalServerError)
 		return
 	}
-	_, sessErr := dbHelper.CreateSession(userID)
-	if sessErr != nil {
-		fmt.Println(sessErr)
-		return
-	}
+	//_, sessErr := dbHelper.CreateSession(userID)
+	//if sessErr != nil {
+	//	fmt.Println(sessErr)
+	//	return
+	//}
 
 	err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "user created successfully",
+		"user_id": userID,
 	})
 	if err != nil {
 		return
@@ -57,28 +58,49 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, validateErr := dbHelper.ValidateUser(body.Email, body.Password)
 	if validateErr != nil {
-		json.NewEncoder(w).Encode(map[string]string{
+		err := json.NewEncoder(w).Encode(map[string]string{
 			"message": "invalid credentials",
 		})
+		if err != nil {
+			return
+		}
 		return
 	}
-	sessionID, sessErr := dbHelper.CreateSession(userID)
+
+	accessToken, err := middleware.GenerateAccessToken(userID)
+	refreshToken, err := middleware.GenerateRefreshToken(userID)
+	if err != nil {
+		http.Error(w, "could not generate jwt token", http.StatusInternalServerError)
+		return
+	}
+
+	_, sessErr := dbHelper.CreateSession(userID, refreshToken)
 	if sessErr != nil {
 		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
-	err := json.NewEncoder(w).Encode(map[string]string{
+
+	EncodeErr := json.NewEncoder(w).Encode(map[string]string{
 		"message":       "user logged in successfully",
-		"session_token": sessionID,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
-	if err != nil {
+	if EncodeErr != nil {
 		return
 	}
 
 }
 func Logout(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.Header.Get("session-id")
-	LogoutErr := dbHelper.Logout(sessionID)
+	userID := middleware.UserContext(r)
+	refreshToken := r.Header.Get("Authorization")
+
+	if refreshToken == "" || !strings.HasPrefix(refreshToken, "Bearer ") {
+		http.Error(w, "missing or malformed token", http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(refreshToken, "Bearer ")
+	LogoutErr := dbHelper.Logout(userID, token)
 	if LogoutErr != nil {
 		http.Error(w, "logout failed", http.StatusInternalServerError)
 		return
@@ -124,4 +146,37 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+}
+
+func Refresh(w http.ResponseWriter, r *http.Request) {
+	var body models.RefreshToken
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "failed to parse request body", http.StatusInternalServerError)
+		return
+	}
+	if body.UserID == "" || body.Token == "" {
+		http.Error(w, "missing user_id or refresh_token", http.StatusBadRequest)
+		return
+	}
+	if dbHelper.ValidateSession(body.UserID, body.Token) {
+		accessToken, err := middleware.GenerateAccessToken(body.UserID)
+		if err != nil {
+			http.Error(w, "could not generate jwt token", http.StatusInternalServerError)
+			return
+		}
+		EncodeErr := json.NewEncoder(w).Encode(map[string]string{
+			"message":      "new access token generated successfully",
+			"access_token": accessToken,
+		})
+		if EncodeErr != nil {
+			return
+		}
+	} else {
+		err := dbHelper.DeleteSession(body.UserID, body.Token)
+		if err != nil {
+			http.Error(w, "failed to delete the session", http.StatusInternalServerError)
+		}
+		http.Error(w, "session expired login again", http.StatusUnauthorized)
+	}
+
 }

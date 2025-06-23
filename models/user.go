@@ -15,3 +15,8 @@ type LoginRequest struct {
 	Email    string `json:"email" db:"email"`
 	Password string `json:"-" db:"password"`
 }
+
+type RefreshToken struct {
+	UserID string `json:"user_id"`
+	Token  string `json:"refresh_token"`
+}
