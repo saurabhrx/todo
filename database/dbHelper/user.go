@@ -3,6 +3,7 @@ package dbHelper
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"myTodo/database"
 	"myTodo/models"
@@ -71,9 +72,21 @@ func ValidateSession(userID string, refreshToken string) bool {
 
 func Logout(userID string, refreshToken string) error {
 	SQL := `DELETE FROM user_session WHERE user_id=$1 AND refresh_token=$2`
-	_, err := database.Todo.Exec(SQL, userID, refreshToken)
-	return err
+	result, err := database.Todo.Exec(SQL, userID, refreshToken)
+	if err != nil {
+		return err
+	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no session found to delete")
+	}
+
+	return nil
 }
 
 func GetProfile(userID string) (models.UserResponse, error) {

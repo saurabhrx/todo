@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"os"
@@ -76,7 +75,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// jwt based authentication
 
 		authHeader := r.Header.Get("Authorization")
-		fmt.Println("token....", authHeader)
 
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			http.Error(w, "missing or malformed token", http.StatusUnauthorized)
