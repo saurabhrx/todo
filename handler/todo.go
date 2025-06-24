@@ -26,6 +26,7 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 		"message": "todo created successfully",
 	})
 	if err != nil {
+		http.Error(w, "failed to send respond", http.StatusInternalServerError)
 		return
 	}
 }
@@ -40,6 +41,7 @@ func GetAllTodos(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewEncoder(w).Encode(todos)
 	if err != nil {
+		http.Error(w, "failed to send respond", http.StatusInternalServerError)
 		return
 	}
 }
@@ -52,15 +54,20 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	UpdateErr := dbHelper.UpdateTodo(body.ID, userID, body.Name, body.Description, body.Status)
-	if UpdateErr != nil {
+	updateSuccess, updateErr := dbHelper.UpdateTodo(body.ID, userID, body.Name, body.Description, body.Status)
+	if updateErr != nil {
 		http.Error(w, "failed to Update", http.StatusInternalServerError)
+		return
+	}
+	if !updateSuccess {
+		http.Error(w, "todo not found", http.StatusBadRequest)
 		return
 	}
 	err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "todo updated successfully",
 	})
 	if err != nil {
+		http.Error(w, "failed to send respond", http.StatusInternalServerError)
 		return
 	}
 
@@ -69,20 +76,26 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 func DeleteTodo(w http.ResponseWriter, r *http.Request) {
 
 	var body models.TodoDelete
+	userID := middleware.UserContext(r)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		logrus.Panic("failed to parse request body")
 		return
 	}
 
-	DeleteErr := dbHelper.DeleteTodo(body.ID)
-	if DeleteErr != nil {
+	deleteSuccess, deleteErr := dbHelper.DeleteTodo(body.ID, userID)
+	if deleteErr != nil {
 		http.Error(w, "failed to delete todo", http.StatusInternalServerError)
+		return
+	}
+	if !deleteSuccess {
+		http.Error(w, "todo not found", http.StatusBadRequest)
 		return
 	}
 	err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "todo deleted successfully",
 	})
 	if err != nil {
+		http.Error(w, "failed to send respond", http.StatusInternalServerError)
 		return
 	}
 }

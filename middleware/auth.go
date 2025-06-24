@@ -81,38 +81,19 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		accessToken := strings.TrimPrefix(authHeader, "Bearer ")
-		accessClaims := jwt.MapClaims{}
+		accessClaims := &Claims{}
 		token, err := jwt.ParseWithClaims(accessToken, accessClaims, func(token *jwt.Token) (interface{}, error) {
 			return jwtSecret, nil
 		})
 		// access token is valid
 		if err == nil && token.Valid {
-			userID := accessClaims["user_id"].(string)
-			ctx := context.WithValue(r.Context(), userContext, userID)
+			ctx := context.WithValue(r.Context(), userContext, accessClaims.UserID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
-		} else {
+		} else { // access token invalid
 			http.Error(w, "token expired", http.StatusUnauthorized)
 			return
 		}
-
-		//access token is invalid or expired
-
-		// check is session valid
-		//userID := accessClaims["user_id"].(string)
-		//fmt.Println(userID)
-		//if dbHelper.ValidateSession(userID, accessToken) {
-		//	http.Error(w, "access token expired", http.StatusUnauthorized)
-		//	return
-		//} else {
-		//	fmt.Println("invalid....")
-		//	err := dbHelper.DeleteSession(userID, accessToken)
-		//	if err != nil {
-		//		http.Error(w, "failed to delete the session", http.StatusInternalServerError)
-		//	}
-		//	http.Error(w, "session expired login again", http.StatusUnauthorized)
-		//	return
-		//}
 
 	})
 }

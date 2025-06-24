@@ -12,7 +12,7 @@ import (
 func Register(w http.ResponseWriter, r *http.Request) {
 	var body models.UserRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "failed to parse request body", http.StatusInternalServerError)
+		http.Error(w, "failed to parse request body", http.StatusBadRequest)
 		return
 	}
 	exists, existsErr := dbHelper.IsUserExists(body.Email)
@@ -29,8 +29,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to hash password", http.StatusInternalServerError)
 		return
 	}
-	userID, CreateErr := dbHelper.CreateUser(body.Name, body.Email, string(hashedPassword))
-	if CreateErr != nil {
+	userID, createErr := dbHelper.CreateUser(body.Name, body.Email, string(hashedPassword))
+	if createErr != nil {
 		http.Error(w, "failed to create new user", http.StatusInternalServerError)
 		return
 	}
@@ -52,7 +52,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 func Login(w http.ResponseWriter, r *http.Request) {
 	var body models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "failed to Decode json", http.StatusInternalServerError)
+		http.Error(w, "failed to Decode json", http.StatusBadRequest)
 		return
 	}
 	userID, validateErr := dbHelper.ValidateUser(body.Email, body.Password)
@@ -66,9 +66,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := middleware.GenerateAccessToken(userID)
-	refreshToken, err := middleware.GenerateRefreshToken(userID)
-	if err != nil {
+	accessToken, accessErr := middleware.GenerateAccessToken(userID)
+	refreshToken, refreshErr := middleware.GenerateRefreshToken(userID)
+	if accessErr != nil || refreshErr != nil {
 		http.Error(w, "could not generate jwt token", http.StatusInternalServerError)
 		return
 	}
@@ -171,7 +171,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		err := dbHelper.DeleteSession(body.UserID, body.Token)
+		err := dbHelper.Logout(body.UserID, body.Token)
 		if err != nil {
 			http.Error(w, "failed to delete the session", http.StatusInternalServerError)
 		}

@@ -38,7 +38,7 @@ func migrateUp(db *sqlx.DB) error {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return err
 	}
-	fmt.Println("Migration completed")
+	fmt.Println("migration completed")
 	return nil
 }
 

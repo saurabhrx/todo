@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	"myTodo/database"
 	"myTodo/routes"
 	"net/http"
@@ -23,7 +24,7 @@ func main() {
 	password := os.Getenv("DB_PASSWORD")
 
 	if err := database.ConnectToDB(host, port, user, password, databaseName); err != nil {
-		fmt.Println("failed to connect database")
+		logrus.Panic("failed to connect database")
 		return
 	}
 
@@ -34,13 +35,13 @@ func main() {
 	SrvErr := http.ListenAndServe(":8080", srv)
 
 	if SrvErr != nil {
-		fmt.Println("failed to connect to server")
+		logrus.Panic("failed to connect to server")
 		return
 	}
 
 	DBCloseErr := database.CloseDBConnection()
 	if DBCloseErr != nil {
-		fmt.Println("failed to close database")
+		logrus.Panic("failed to close database")
 		return
 	}
 

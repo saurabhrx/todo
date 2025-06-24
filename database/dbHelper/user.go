@@ -104,9 +104,3 @@ func DeleteUser(userID string) error {
 	_, err := database.Todo.Exec(SQL, userID)
 	return err
 }
-
-func DeleteSession(userID string, refreshToken string) error {
-	SQL := `DELETE FROM user_session WHERE user_id=$1 AND refresh_token=$2`
-	_, err := database.Todo.Exec(SQL, userID, refreshToken)
-	return err
-}
